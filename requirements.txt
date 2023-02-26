@@ -1,3 +1,12 @@
 maturin==0.14.14
 numpy==1.24.2
 tomli==2.0.1
+
+
+// use std::iter::zip;
+// use list_comprehension_macro::comp;
+
+// #[pyfunction]
+// fn concat2(arr1: Vec<String>, arr2: Vec<String>) -> PyResult<Vec<String>> {
+// let new_arr = comp![format!("{} {}", x, y) for (x, y) in zip(arr1, arr2)];
+// }

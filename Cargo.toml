@@ -9,4 +9,8 @@ name = "npconcat"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = "0.18.1"
+pyo3 = "0.17.0"
+numpy = "0.17.0"
+list_comprehension_macro = "0.1.1"
+rayon = "1.5.0"
+concat-string = "1.0.1"
