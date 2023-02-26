@@ -76,6 +76,14 @@ fn pass_through(list_a: &PyList, _list_b: &PyList) -> PyObject {
         list_a.to_object(py)
     })
 }
+
+
+#[pyfunction]
+fn pass_through_vec(a: Vec<String>, _b: Vec<String>) -> PyResult<Vec<String>> {
+
+    Ok(a)
+}
+
 /// A Python module implemented in Rust.
 #[pymodule]
 fn npconcat(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -83,5 +91,6 @@ fn npconcat(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(concat6, m)?)?;
     m.add_function(wrap_pyfunction!(format, m)?)?;
     m.add_function(wrap_pyfunction!(pass_through, m)?)?;
+    m.add_function(wrap_pyfunction!(pass_through_vec, m)?)?;
     Ok(())
 }
