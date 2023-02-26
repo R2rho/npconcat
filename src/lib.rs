@@ -1,10 +1,13 @@
 use numpy::PyReadonlyArray1;
 use pyo3::prelude::*;
+use pyo3::types::PyList;
 use rayon::prelude::*;
 use std::fmt::Write;
 use std::cmp;
 // use list_comprehension_macro::comp;
 // use std::iter::zip;
+use flame;
+use std::fs::File;
 
 #[macro_use(concat_string)]
 extern crate concat_string;
@@ -45,28 +48,71 @@ fn concat2(a: Vec<String>, b: Vec<String>) -> PyResult<Vec<String>> {
     Ok(result)
 }
 
+
 #[pyfunction]
-fn concat3(a: Vec<Vec<u8>>, b: Vec<Vec<u8>>) -> PyResult<Vec<String>> {
-    let mut result: Vec<String> = Vec::with_capacity(a.len());
+fn concat6(list_a: &PyList, list_b: &PyList) -> PyObject {
+    flame::start("concat6");
+    let a = list_a.iter().map(|x| x.extract::<String>().unwrap());
+    let b = list_b.iter().map(|x| x.extract::<String>().unwrap());
 
-    a.par_iter()
-        .zip(b.par_iter())
-        .map(|(a_val, b_val)| {
-            let mut concat_bytes = Vec::with_capacity(a_val.len() + b_val.len());
-            concat_bytes.extend_from_slice(a_val);
-            concat_bytes.extend_from_slice(b_val);
-            String::from_utf8(concat_bytes).unwrap()
-        })
-        .collect_into_vec(&mut result);
+    let result: Vec<String> = a.zip(b)
+        .collect::<Vec<(String, String)>>()
+        .into_par_iter()
+        .map(|(a_val, b_val)| concat_string!(a_val, b_val))
+        .collect();
+    
+    flame::end("concat6");
+    flame::dump_html(&mut File::create("concat6_flamegraph.html").unwrap()).unwrap();
 
-    Ok(result)
+    Python::with_gil(|py| {
+        // list_a.to_object(py)
+        PyList::new(py, &result).to_object(py)
+    })
 }
 
+// #[pyfunction]
+// fn concat4(list_a: &PyList,
+//            list_b: &PyList,
+//            list_c: &PyList,
+//            list_d: &PyList
+//         ) -> PyObject {
+//     flame::start("concat4");
+//     let a = list_a.iter().map(|x| x.extract::<String>().unwrap());
+//     let b = list_b.iter().map(|x| x.extract::<String>().unwrap());
+//     let c = list_c.iter().map(|x| x.extract::<String>().unwrap());
+//     let d = list_d.iter().map(|x| x.extract::<String>().unwrap());
+
+
+//     let result = comp![concat_string!(A,B,C,D) for (A,B,C,D) in a.zip(b).zip(c).zip(d)];
+//     // let result: Vec<String> = a.zip(b).zip(c).zip(d)
+//     //     .collect::<Vec<(String, String, String, String)>>()
+//     //     .into_par_iter()
+//     //     .map(|(a_val, b_val, c_val, d_val)| concat_string!(a_val, b_val, c_val, d_val))
+//     //     .collect();
+    
+//     flame::end("concat4");
+//     flame::dump_html(&mut File::create("concat6_flamegraph.html").unwrap()).unwrap();
+
+//     Python::with_gil(|py| {
+//         // list_a.to_object(py)
+//         PyList::new(py, &result).to_object(py)
+//     })
+// }
+
+
+#[pyfunction]
+fn pass_through(list_a: &PyList, _list_b: &PyList) -> PyObject {
+    Python::with_gil(|py| {
+        list_a.to_object(py)
+    })
+}
 /// A Python module implemented in Rust.
 #[pymodule]
 fn npconcat(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(concat2, m)?)?;
-    m.add_function(wrap_pyfunction!(concat3, m)?)?;
+    // m.add_function(wrap_pyfunction!(concat4, m)?)?;
+    m.add_function(wrap_pyfunction!(concat6, m)?)?;
     m.add_function(wrap_pyfunction!(format, m)?)?;
+    m.add_function(wrap_pyfunction!(pass_through, m)?)?;
     Ok(())
 }
