@@ -93,7 +93,8 @@ def fastconcat2(arrays:list, precision:int=5, spaces:bool=True):
     if spaces.__class__.__name__ != 'bool':
         raise TypeError('spaces argument must be of type bool')
     separator: bool = ' ' if spaces else ''
-    result = npconcat.concat_pylists(*arrays,5,separator)
+    result = npconcat.concat_pylists3(arrays,5,separator)
+    # result = npconcat.concat_pylists(*arrays[0:3],5,separator)
     return result
 
 class Axis:
@@ -130,16 +131,16 @@ axis_name=''
 width = len(x)*2000
 precision=5
 precision_zero = float(f"0.{'0'*precision}1")
-formatter = {'float_kind':lambda pos: f"{axis_name}{pos:.5f}" if pos < precision_zero else f"{axis.name} {pos:.5f}"}
+formatter = {'float_kind':lambda pos: f"{axis_name}{pos:.5f}" if pos < precision_zero else f"{axis_name} {pos:.5f}"}
 
 start = time.time()
 positions=np.empty((0,0))
-for a in axes:
-    axis_name = a.name
-    positions=np.append(positions,np.array2string(a.positions,formatter=formatter,max_line_width = width*20).replace('[','').replace(']',''))
+# for a in axes:
+#     axis_name = a.name
+#     positions=np.append(positions,np.array2string(a.positions,formatter=formatter,max_line_width = width*20).replace('[','').replace(']',''))
 
-positions = np.append(positions,np.array2string(nl,max_line_width = width))
-p = np.array2string(positions.T,max_line_width=len(positions[0])*len(axes)*2).replace('[','').replace(']','').replace("'","")
+# positions = np.append(positions,np.array2string(nl,max_line_width = width))
+# p = np.array2string(positions.T,max_line_width=len(positions[0])*len(axes)*2).replace('[','').replace(']','').replace("'","")
 print(f'numpy_append: {time.time()-start}')
 
 X = np.full(shape,'X')
@@ -148,7 +149,7 @@ Z = np.full(shape,'Z')
 
 start = time.time()
 arrays = [X,x,Y,y,Z,z]
-p = fastconcat2(arrays[0:3])
+p = fastconcat2(arrays)
 print(f'fastconcat: {time.time()-start}')
 
 print('done')

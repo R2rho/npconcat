@@ -96,6 +96,24 @@ fn concat6(list_a: &PyList, list_b: &PyList) -> PyObject {
     })
 }
 
+
+#[pyfunction]
+fn concat8(list_a: &PyList, list_b: &PyList, precision: Option<usize>) -> PyObject {
+    
+    let a: Vec<String> = list_a.iter().map(|x| parse_value(x, precision)).collect();
+    let b: Vec<String> = list_b.iter().map(|x| parse_value(x, precision)).collect();
+
+    let result: Vec<String> = a
+        .into_par_iter()
+        .zip(b.into_par_iter())
+        .map(|(a_val, b_val)| concat_string!(a_val, b_val))
+        .collect();
+
+    Python::with_gil(|py| {
+        PyList::new(py, &result).to_object(py)
+    })
+}
+
 fn parse_value(py_val: &PyAny, precision: Option<usize>) -> String {
     if let Ok(val) = py_val.extract::<String>() {
         val
@@ -109,29 +127,10 @@ fn parse_value(py_val: &PyAny, precision: Option<usize>) -> String {
     }
 }
 
-#[pyfunction]
-fn concat8(list_a: &PyList, list_b: &PyList, precision: Option<usize>) -> PyObject {
-    flame::start("concat8");
-    let a: Vec<String> = list_a.iter().map(|x| parse_value(x, precision)).collect();
-    let b: Vec<String> = list_b.iter().map(|x| parse_value(x, precision)).collect();
-
-    let result: Vec<String> = a
-        .into_par_iter()
-        .zip(b.into_par_iter())
-        .map(|(a_val, b_val)| concat_string!(a_val, b_val))
-        .collect();
-
-    flame::end("concat8");
-    flame::dump_html(&mut File::create("concat8_flamegraph.html").unwrap()).unwrap();
-
-    Python::with_gil(|py| {
-        PyList::new(py, &result).to_object(py)
-    })
-}
 
 #[pyfunction]
 fn concat_pylists(list_a: &PyList, list_b: &PyList, list_c: &PyList, precision: Option<usize>,separator:Option<String>) -> PyObject {
-    flame::start("concat8");
+    
     let separator = separator.unwrap_or("".to_string());
 
     let a: Vec<String> = list_a.iter().map(|x| parse_value(x, precision)).collect();
@@ -145,22 +144,18 @@ fn concat_pylists(list_a: &PyList, list_b: &PyList, list_c: &PyList, precision: 
         .map(|((a_val, b_val), c_val)| concat_string!(a_val, separator, b_val, separator, c_val))
         .collect();
 
-    flame::end("concat8");
-    flame::dump_html(&mut File::create("concat8_flamegraph.html").unwrap()).unwrap();
-
     Python::with_gil(|py| {
         PyList::new(py, &result).to_object(py)
     })
 }
 
 fn parse_list(list: &&PyList, precision: Option<usize>) -> Vec<String> {
-    
     list.iter().map(|x| parse_value(x, precision)).collect()
 }
 
 #[pyfunction]
 fn concat_pylists_var(args: Vec<&PyList>, precision: Option<usize>,separator:Option<String>) -> PyObject {
-    flame::start("concat9");
+    let separator = separator.unwrap_or("".to_string());
     let lists: Vec<Vec<String>> = args.iter().map(|list| parse_list(list, precision)).collect();
 
     let result: Vec<String> = lists
@@ -168,17 +163,89 @@ fn concat_pylists_var(args: Vec<&PyList>, precision: Option<usize>,separator:Opt
         .reduce(|| vec![], |acc, list| {
             acc.into_par_iter()
                 .zip(list.into_par_iter())
-                .map(|(a_val, b_val)| concat_string!(a_val, b_val))
+                .map(|(a_val, b_val)| concat_string!(a_val, separator, b_val))
                 .collect()
         });
-
-    flame::end("concat9");
-    flame::dump_html(&mut File::create("concat9_flamegraph.html").unwrap()).unwrap();
 
     Python::with_gil(|py| {
         PyList::new(py, &result).to_object(py)
     })
 }
+
+#[pyfunction]
+fn concat_pylists2(py_lists: Vec<&PyList>, precision: Option<usize>, separator: Option<String>) -> PyObject {
+    println!("STARTING");
+    let separator = separator.unwrap_or("".to_string());
+
+    let parsed_lists: Vec<Vec<String>> = py_lists
+        .into_iter()
+        .map(|py_list| {
+            py_list
+                .into_iter()
+                .map(|val| parse_value(val, precision))
+                .collect()
+        })
+        .collect();
+    println!("VECS MADE");
+    let result: Vec<String> = parsed_lists[0]
+        .par_iter()
+        .zip(parsed_lists[1..].par_iter())
+        .map(|(a_val, other_vals)| {
+            let concat_vals = other_vals
+                .iter()
+                .fold(a_val.to_owned(), |acc, val| {
+                    println!("{}{}",acc,val);
+                    // format!("{}{}{}", acc, separator, val);
+                    concat_string!(acc, separator,val)
+
+                });
+            concat_vals
+        })
+        .collect();
+    println!("DONE!");
+    Python::with_gil(|py| {
+        PyList::new(py, &result).to_object(py)
+    })
+}
+
+#[pyfunction]
+fn concat_pylists3(py_lists: Vec<&PyList>, precision: Option<usize>, separator: Option<String>) -> PyObject {
+    let separator = separator.unwrap_or("".to_string());
+
+    let parsed_lists: Vec<Vec<String>> = py_lists
+        .into_iter()
+        .map(|py_list| {
+            py_list
+                .into_iter()
+                .map(|val| parse_value(val, precision))
+                .collect()
+        })
+        .collect();
+
+    let result: Vec<String> = parsed_lists[0]
+        .par_iter()
+        .enumerate()
+        .map(|(idx, a_val)| {
+            let other_vals = parsed_lists[1..]
+                .iter()
+                .map(|list| &list[idx]);
+
+            let concat_vals = other_vals
+                .fold(a_val.to_owned(), |acc, val| {
+                    // format!("{}{}{}", acc, separator, val)
+                    // println!("{}{}",acc,val);
+                    concat_string!(acc, separator,val)
+                });
+
+            concat_vals
+        })
+        .collect();
+
+    Python::with_gil(|py| {
+        PyList::new(py, &result).to_object(py)
+    })
+}
+
 
 #[pyfunction]
 fn pass_through(list_a: &PyList, _list_b: &PyList) -> PyObject {
@@ -198,6 +265,8 @@ fn pass_through_vec(a: Vec<String>, _b: Vec<String>) -> PyResult<Vec<String>> {
 #[pymodule]
 fn npconcat(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(concat_pylists, m)?)?;
+    m.add_function(wrap_pyfunction!(concat_pylists2, m)?)?;
+    m.add_function(wrap_pyfunction!(concat_pylists3, m)?)?;
     m.add_function(wrap_pyfunction!(concat_pylists_var, m)?)?;
     m.add_function(wrap_pyfunction!(concat6, m)?)?;
     m.add_function(wrap_pyfunction!(concat7, m)?)?;
